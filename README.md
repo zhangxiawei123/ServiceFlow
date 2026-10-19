@@ -1,6 +1,6 @@
-# EchoMind
+# ServiceFlow
 
-本仓库基于 [Biscuit-AI531/EchoMind](https://github.com/Biscuit-AI531/EchoMind) 进行学习复现与调整，包含 DeepSeek 兼容接口配置、独立聊天前端及 Windows 复现说明。上游项目与本仓库的调整应分别说明，避免将上游实现全部视作个人原创。
+ServiceFlow 基于 [Biscuit-AI531/EchoMind](https://github.com/Biscuit-AI531/EchoMind) 进行学习复现与调整，包含 DeepSeek 兼容接口配置、独立聊天前端及 Windows 复现说明。以下技术说明及代码中的 EchoMind 命名沿用上游项目。
 
 上传版本只包含源码、示例配置和演示文档，不包含本机 `.env`、API Key、对话数据库及日志。运行前请根据 `.env.example` 自行配置 `.env`。
 
