@@ -4,6 +4,12 @@ ServiceFlow 基于 [Biscuit-AI531/EchoMind](https://github.com/Biscuit-AI531/Ech
 
 上传版本只包含源码、示例配置和演示文档，不包含本机 `.env`、API Key、对话数据库及日志。运行前请根据 `.env.example` 自行配置 `.env`。
 
+## 免费云端演示部署
+
+[一键部署到 Render](https://render.com/deploy?repo=https://github.com/zhangxiawei123/ServiceFlow) · [完整部署步骤与免费版限制](DEPLOY_RENDER.md)
+
+此入口将网页与 API 部署到同一域名，使用访问口令保护聊天，两个云资源均配置为 Free。需在 Render 私密环境变量中填写模型 Key 和演示访问口令。免费实例会休眠且不保证向量数据持久化，模型调用仍消耗自己的账户额度；平台构建及真实聊天验证完成后才算上线。
+
 EchoMind 是一个面向客服/运营场景的多 Agent 智能系统。它不是单纯的聊天机器人，而是把以下能力串成闭环：
 
 - 细粒度意图识别

@@ -1,0 +1,39 @@
+# Demo only: no paid instances, persistent disks, or auto-scaling.
+services:
+  - type: web
+    name: serviceflow
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./deploy/render.Dockerfile
+    dockerContext: .
+    healthCheckPath: /healthz
+    envVars:
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: SERVICEFLOW_DEMO_PASSWORD
+        sync: false
+      - key: DEEPSEEK_MODEL
+        value: deepseek-v4-pro
+      - key: DEEPSEEK_BASE_URL
+        value: https://api.deepseek.com/anthropic
+      - key: SERVICEFLOW_DEMO_USERNAME
+        value: demo
+      - key: SERVICEFLOW_CHAT_LIMIT_PER_HOUR
+        value: "30"
+      - key: APP_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: INFO
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: serviceflow-redis
+          property: connectionString
+
+  - type: keyvalue
+    name: serviceflow-redis
+    plan: free
+    region: singapore
+    ipAllowList: []
+    maxmemoryPolicy: allkeys-lru

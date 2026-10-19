@@ -2,6 +2,7 @@
 .gitignore
 .idea
 .venv
+.venv-win
 __pycache__
 *.py[cod]
 *.pyo
