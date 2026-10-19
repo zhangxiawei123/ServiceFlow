@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+.venv-win/
+.conda-env/
+venv/
+
+# 环境变量（含敏感信息）
+.env
+.env.*
+!.env.example
+
+# 测试缓存
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# 运行时数据（演示知识库 data/demo_docs/ 需要纳入版本控制）
+data/chroma/
+data/eval/
+logs/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker 构建产物
+build-image*.sh
+
+# ChromaDB 本地数据
+*.sqlite3
+
+# 备份文件
+*~
+*.bak
+docker-compose(1).yml
