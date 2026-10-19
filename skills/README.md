@@ -1,62 +1,47 @@
-# EchoMind Skills 文档
+# ServiceFlow 业务 Skills
 
-EchoMind 启动时会从 `ECHOMIND_SKILLS_DIR` 读取 Skills，并在匹配用户请求时注入到对应 Agent 的 system prompt。Skills 适合维护业务处理规范、客服话术、技术排障 SOP、账单审核边界、升级规则和禁止事项。
+这些文件是客服业务规则，不是执行工具或权限授予。加载器读取规则并按角色、关键词匹配后注入 system prompt；代码中的白名单与参数校验仍是安全边界。
 
-当前内置三类 Skills：
+## 目录与配置
 
-```text
-skills/general_customer_service/SKILL.md  # 通用客服：接待、澄清、分流、投诉和转人工
-skills/technical_support/SKILL.md         # 技术支持：故障排查、接口错误、部署配置和安全边界
-skills/billing_support/SKILL.md           # 账单服务：扣款、退款、发票、订阅和财务审核
-```
+三类规则位于 `general_customer_service/`、`technical_support/` 和 `billing_support/`。
 
-## Skill 文件格式
+`SERVICEFLOW_SKILLS_DIR` 指定根目录，`SERVICEFLOW_SKILLS_MAX_PROMPT_CHARS` 指定总预算，默认 5000 字符。旧前缀变量仅用于迁移；两者同时存在时新变量优先。
 
-推荐每个 Skill 使用独立目录，并将主文件命名为 `SKILL.md`：
+## 文件格式
 
-```text
-skills/<skill_name>/SKILL.md
-```
-
-文件顶部使用简单 front matter：
+推荐 `skills/<场景>/SKILL.md`：
 
 ```markdown
 ---
 name: 技术支持处理规范
-description: 适用于 TechnicalAgent 的故障排查和升级处理规范
-keywords: 报错,错误,接口,API,部署,超时,500,401,日志
+description: ServiceFlow 技术角色的排障与安全边界
+keywords: 报错,错误,接口,API,部署,超时,401,500
 agents: technical
 enabled: true
 ---
+
+# 处理规则
+先确认错误码、时间及环境；不索要密码，不声称读取了真实日志。
 ```
 
-字段说明：
+加载器支持 Markdown、TXT、JSON。front matter 是项目内简单解析，不是完整 YAML 引擎；使用简单标量和逗号分隔列表，避免复杂嵌套语法。
 
-- `name`：Skill 展示名称，会出现在注入给模型的 prompt 中。
-- `description`：简短说明，方便 `/skills` 接口排查。
-- `keywords`：触发关键词，用户消息命中后才注入；多个关键词用英文逗号或中文逗号分隔均可。
-- `agents`：适用 Agent，可填 `general`、`technical`、`billing`，多个值用逗号分隔。
-- `enabled`：是否启用，支持 `true/false`。
+角色值使用 `general`、`technical`、`billing`、`escalation`。角色及关键词条件都应验证，空关键词会扩大应用范围；不要未经测试加入全局规则。
 
 ## 编写要求
 
-- 重要规则放在文档前半部分，因为过长内容会按 prompt 预算截断。
-- 一类 Skill 只描述一类职责，不要把技术、账单、通用客服规则混在一个文件里。
-- 必须包含“角色定位”“处理流程”“升级条件”“禁止事项”等稳定章节。
-- 对用户隐私、支付、密码、验证码、API Key、Token 等敏感信息必须写明禁止收集或禁止公开。
-- 对无法保证的事项使用保守措辞，例如“通常”“预计”“需要核验后确认”。
-- 对需要人工、财务、二线技术处理的场景要明确写出升级条件。
+- 先写职责和禁止事项，再写处理流程。
+- 将关键约束放在前部，过长内容会截断。
+- 不索要密码、验证码、完整卡号、API Key 或 Token。
+- 不宣称执行不存在的退款、业务查询、日志读取和工单动作。
+- 规则属于可信维护文件，变更要审阅；外部文档不能任意覆盖工具授权。
 
-## 热加载
+## 热加载与验收
 
-修改 Skill 文件后，不需要重启服务，调用：
-
-```bash
-curl -X POST http://localhost:8000/skills/reload
+```powershell
+Invoke-RestMethod -Method Post http://localhost:8000/skills/reload
+Invoke-RestMethod http://localhost:8000/skills | ConvertTo-Json -Depth 8
 ```
 
-查看加载结果和解析错误：
-
-```bash
-curl http://localhost:8000/skills
-```
+检查加载错误、匹配角色和实际回答，再提交。公网演示禁用管理接口，应在本地验证后部署。热加载不提供版本回滚或分布式同步，生产应增加规则版本和发布审计。

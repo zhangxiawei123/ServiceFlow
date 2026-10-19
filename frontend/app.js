@@ -20,10 +20,13 @@ const state = {
 };
 
 function getUserId() {
-  const stored = localStorage.getItem("echomind-user-id");
-  if (stored) return stored;
+  const stored = localStorage.getItem("serviceflow-user-id") || localStorage.getItem("echomind-user-id");
+  if (stored) {
+    localStorage.setItem("serviceflow-user-id", stored);
+    return stored;
+  }
   const id = `web-${crypto.randomUUID()}`;
-  localStorage.setItem("echomind-user-id", id);
+  localStorage.setItem("serviceflow-user-id", id);
   return id;
 }
 
@@ -75,8 +78,8 @@ function createMessage(role, body, metadata = null) {
   const metaNode = fragment.querySelector(".message-meta");
 
   article.classList.add(role);
-  avatar.textContent = role === "user" ? "你" : role === "error" ? "!" : "E";
-  roleLabel.textContent = role === "user" ? "你" : role === "error" ? "连接提示" : "EchoMind";
+  avatar.textContent = role === "user" ? "你" : role === "error" ? "!" : "S";
+  roleLabel.textContent = role === "user" ? "你" : role === "error" ? "连接提示" : "ServiceFlow";
   bodyNode.textContent = body;
 
   if (metadata) renderMetadata(metaNode, metadata);
@@ -126,7 +129,7 @@ function renderMetadata(container, data) {
 function createTypingMessage() {
   const node = createMessage("assistant", "");
   const body = node.querySelector(".message-body");
-  body.setAttribute("aria-label", "EchoMind 正在思考");
+  body.setAttribute("aria-label", "ServiceFlow 正在思考");
   body.innerHTML = '<div class="typing" aria-hidden="true"><span></span><span></span><span></span></div>';
   return node;
 }

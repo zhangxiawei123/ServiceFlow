@@ -1,182 +1,103 @@
 # ServiceFlow
 
-ServiceFlow 基于 [Biscuit-AI531/EchoMind](https://github.com/Biscuit-AI531/EchoMind) 进行学习复现与调整，包含 DeepSeek 兼容接口配置、独立聊天前端及 Windows 复现说明。以下技术说明及代码中的 EchoMind 命名沿用上游项目。
+面向客服场景的多 Agent 服务编排系统，将意图识别、专业角色协作、知识检索、会话记忆和运行观测组织成一条可追踪的处理链路。
 
-上传版本只包含源码、示例配置和演示文档，不包含本机 `.env`、API Key、对话数据库及日志。运行前请根据 `.env.example` 自行配置 `.env`。
+[在线演示](https://serviceflow-yejw.onrender.com/) · [文档中心](wiki/文档中心.md) · [Windows 安装](SETUP_WINDOWS.md) · [云端部署](DEPLOY_RENDER.md)
 
-## 免费云端演示部署
+演示站点需要访问口令，账号默认为 `demo`。口令由项目维护者在 Render 私密环境变量中管理，不是模型 API Key。免费实例可能冷启动；模型调用消耗维护者的账户额度。
 
-[一键部署到 Render](https://render.com/deploy?repo=https://github.com/zhangxiawei123/ServiceFlow) · [完整部署步骤与免费版限制](DEPLOY_RENDER.md)
+## 能做什么
 
-此入口将网页与 API 部署到同一域名，使用访问口令保护聊天，两个云资源均配置为 Free。需在 Render 私密环境变量中填写模型 Key 和演示访问口令。免费实例会休眠且不保证向量数据持久化，模型调用仍消耗自己的账户额度；平台构建及真实聊天验证完成后才算上线。
+- 意图分析：融合 LLM、向量匹配和规则，输出业务意图、实体、紧急度与置信度。
+- 服务编排：General、Technical、Billing 与 Escalation 分工；复合问题支持主辅 Agent 并行处理及结果合成。
+- 工具执行：按角色暴露工具，校验输入，限制调用轮次，并记录请求级工具轨迹。
+- RAG：ChromaDB 文档切片、查询改写、并行召回、去重及 LLM 重排；失败时有回退路径。
+- 分层记忆：Redis 保存近期消息与摘要，ChromaDB 保存情景记忆和用户画像。
+- 业务规则：从本地 Skills 文件加载 SOP，按角色及关键词匹配，可热加载。
+- 质量治理：运行统计、告警、路由惩罚，以及意图分类和对话质量评测。
 
-EchoMind 是一个面向客服/运营场景的多 Agent 智能系统。它不是单纯的聊天机器人，而是把以下能力串成闭环：
+这是可运行的工程演示，不执行真实退款、修改订单或创建外部工单。角色差异不等于多个模型，也不表示模型经过训练或微调。
 
-- 细粒度意图识别
-- 路由驱动的多 Agent 编排
-- 意图驱动 RAG 检索
-- Redis + ChromaDB 分层记忆
-- 动态 Skills 注入
-- 在线监控与路由降权
-- LLM-as-Judge 端到端评测
+## 快速启动
 
-## 你可以先看什么
+需要 Docker Desktop（Linux containers）及可用的 DeepSeek API Key。Windows 详细步骤见[安装指南](SETUP_WINDOWS.md)。
 
-- [Windows 从零复现指南](REPRODUCE_WINDOWS.md)
-- [技术亮点](wiki/技术亮点.md)
-- [重点代码](wiki/重点代码.md)
-- [业务流程说明](wiki/业务流程说明.md)
-- [完整使用指南](wiki/完整使用指南.md)
-
-## 快速开始
-
-### 1. 准备环境
-
-- Docker
-- Docker Compose
-- DeepSeek API Key
-
-项目通过 Anthropic Messages 兼容协议调用 DeepSeek V4 Pro：
-
-```env
-DEEPSEEK_BASE_URL=https://api.deepseek.com/anthropic
-DEEPSEEK_MODEL=deepseek-v4-pro
-DEEPSEEK_API_KEY=your_deepseek_key
+```powershell
+Copy-Item .env.example .env
+notepad .env
 ```
 
-### 2. 配置环境变量
+填写：
 
-复制示例配置：
-
-```bash
-cp .env.example .env
-```
-
-最少确认这些变量可用：
-
-```env
-DEEPSEEK_API_KEY=your_deepseek_api_key
+```dotenv
+DEEPSEEK_API_KEY=replace_with_your_key
 DEEPSEEK_MODEL=deepseek-v4-pro
 DEEPSEEK_BASE_URL=https://api.deepseek.com/anthropic
-REDIS_PASSWORD=echomind123
 ```
 
-### 3. 启动服务
+模型通过 Anthropic Messages 兼容协议接入；模型标识和权限以账户实际可用配置为准。`.env`、数据库和日志不应提交。
 
-推荐直接启动全栈：
-
-```bash
+```powershell
 docker compose up -d --build
-```
-
-查看状态：
-
-```bash
 docker compose ps
+docker compose logs --tail 100 serviceflow
 ```
 
-看日志：
+- 聊天工作台：[http://localhost](http://localhost)
+- 本地接口文档：[http://localhost:8000/docs](http://localhost:8000/docs)
+- 健康检查：[http://localhost:8000/health](http://localhost:8000/health)
+- Prometheus：[http://localhost:9090](http://localhost:9090)
 
-```bash
-docker compose logs -f echomind
-```
+本地完整 API 未提供生产级鉴权，只应在可信开发环境使用。公网演示采用独立的口令网关，不开放管理及评测接口。
 
-### 4. 访问入口
-
-- Web 聊天前端：`http://localhost`
-- API: `http://localhost:8000`
-- Swagger: `http://localhost:8000/docs`
-- Health: `http://localhost:8000/health`
-
-## 核心功能
-
-### 对话主链路
-
-`POST /chat`
-
-流程是：
+## 处理链路
 
 ```text
-读取记忆 -> 意图识别 -> 知识检索 -> Agent 路由 -> 回复生成 -> 写回记忆
+用户消息 → 读取记忆 → 意图与实体识别 → 主辅 Agent 路由
+                                     ↓
+                            Skills + 角色工具 + 按需 RAG
+                                     ↓
+                      回复合成 → 写回记忆 → 请求轨迹与统计
 ```
 
-### 知识库
+RAG 在聊天主链路中由 Agent 的共享工具触发；不是每条消息固定检索。记忆压缩和画像更新也可能额外调用模型。
 
-- `POST /search`
-- `POST /knowledge/add`
-- `POST /knowledge/upload`
-- `GET /knowledge/stats`
+## 工程结构
 
-### Skills
+| 目录 | 职责 |
+|---|---|
+| `frontend/` | 原生 HTML、CSS、JavaScript 聊天与登录页面 |
+| `api/` | FastAPI 生命周期、请求模型和 HTTP 接口 |
+| `core/` | 模型配置、意图识别、文本处理和 Skills 加载 |
+| `agents/` | 角色契约、路由、工具执行及回复合成 |
+| `mcp/` | 项目内工具管理和 ChromaDB 知识库 |
+| `memory/` | 工作记忆、历史摘要及画像 |
+| `monitor/`、`evaluation/` | 在线观测与离线评测 |
+| `deploy/`、`config/` | 公网演示网关、容器及反向代理配置 |
+| `tests/`、`wiki/` | 自动化验证与项目文档 |
 
-- `GET /skills`
-- `POST /skills/reload`
+`MCPToolManager` 是内部工具抽象，当前不等于实现了标准 MCP Server。
 
-### 监控与评测
+## 文档导航
 
-- `GET /monitor`
-- `POST /eval/run`
+- [项目定位](wiki/ServiceFlow定位与技术亮点.md)：范围与能力边界
+- [技术亮点](wiki/技术亮点.md)：设计取舍和优化方向
+- [重点代码](wiki/重点代码.md)：按调用关系阅读源码
+- [业务流程说明](wiki/业务流程说明.md)：单轮、多轮及异常路径
+- [完整使用指南](wiki/完整使用指南.md)：配置、API、数据和排障
+- [评测与优化](wiki/评测与优化.md)：数据集、实验和证据要求
+- [开发与面试手册](wiki/ServiceFlow开发手册.md)：模块知识与深挖问题
 
-## 项目结构
+## 验证
 
-```text
-api/main.py                  FastAPI 入口
-agents/agent_orchestrator.py 多 Agent 编排
-core/intent_recognizer.py    三路融合意图识别
-core/skill_loader.py         动态 Skills 加载
-memory/conversation_memory.py  Redis + ChromaDB 记忆
-mcp/tool_manager.py          工具层、缓存、熔断、重排
-mcp/knowledge_base.py        ChromaDB 知识库
-monitor/performance_monitor.py 在线监控
-evaluation/evaluator.py      端到端评测
-wiki/                       详细文档
-skills/                     动态业务规则
-data/                       持久化数据
+```powershell
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+node --check frontend/app.js
 ```
 
-## 运行时架构
+全量测试需要 ChromaDB 依赖；Windows 原生安装遇到编译问题时可使用 Linux 容器。云端镜像构建额外执行真实 Chroma 记忆集成测试。单元测试通过不代表回答准确率，功能参数也不代表性能提升；评测结果应附带数据集和运行报告。
 
-```text
-用户请求
-  -> /chat
-  -> MemoryManager 读取工作记忆、情景记忆、用户画像
-  -> IntentRecognizer 输出 intent / intent_group / urgency / entities
-  -> 按意图决定是否检索知识库
-  -> AgentOrchestrator 路由到 General / Technical / Billing / Escalation
-  -> Skills 注入、工具调用、回复生成
-  -> 写回 Redis 和 ChromaDB
-  -> Monitor 采集在线指标
-  -> Evaluator 做意图识别和回复质量评测
-```
+## 来源与维护
 
-## 主要端口
-
-| 服务 | 端口 |
-|---|---:|
-| EchoMind API | 8000 |
-| ChromaDB | 8001 |
-| Redis | 6379 |
-| Prometheus | 9090 |
-| Nginx | 80 |
-
-## 开发和调试
-
-常用顺序：
-
-```text
-1. /health
-2. /chat
-3. /skills
-4. /monitor
-5. /eval/run
-```
-
-如果你只想看项目怎么工作，直接读：
-
-- [EchoMind定位与技术亮点](wiki/EchoMind定位与技术亮点.md)
-- [技术亮点](wiki/技术亮点.md)
-- [重点代码](wiki/重点代码.md)
-
-## 一句话概括
-
-EchoMind 是一个可观测、可评测、可降级的多 Agent 客服运行时。
+项目由 [zhangxiawei123](https://github.com/zhangxiawei123) 维护。代码来源、第三方依赖和本仓库的工程调整见[来源说明](PROVENANCE.md)。本仓库未声明拥有全部上游代码的原创权，也未附加未经确认的开源许可证。

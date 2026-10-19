@@ -1,4 +1,4 @@
-# EchoMind 依赖清单
+# ServiceFlow 依赖清单
 
 # ── AI / LLM ──────────────────────────────────────────────────────────────────
 anthropic==0.40.0          # DeepSeek Anthropic 兼容协议客户端；意图 Embedding 缺失时本地兜底

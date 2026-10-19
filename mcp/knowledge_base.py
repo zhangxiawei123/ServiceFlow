@@ -38,7 +38,7 @@ class KnowledgeBase:
         chroma_port: int = 8000,
         chroma_path: str = "./data/chroma",
     ):
-        # 优先连接独立 ChromaDB 服务（服务端内置 embedding 模型，客户端无需下载）
+        # 优先连接独立 ChromaDB 服务；默认 embedding 仍可能在 Python 客户端执行
         self._use_server = False
         try:
             # HttpClient 默认也会初始化 ChromaDB telemetry；显式关闭避免 posthog 兼容性错误日志。
@@ -57,11 +57,11 @@ class KnowledgeBase:
                 settings=chromadb.Settings(anonymized_telemetry=False),
             )
 
-        # 使用服务端时不传 embedding_function，让服务端处理
+        # 不传 embedding_function 时使用 Chroma 默认 embedding；客户端也需要模型缓存
         # 本地模式时也不传，使用 ChromaDB 默认的（会触发模型下载）
         self._collection = self._client.get_or_create_collection(
             name=self.COLLECTION_NAME,
-            metadata={"description": "EchoMind RAG 知识库"},
+            metadata={"description": "ServiceFlow RAG 知识库"},
         )
 
         # 如果知识库为空，导入默认文档
@@ -105,7 +105,7 @@ class KnowledgeBase:
         """
         语义检索：根据 query 返回最相关的文档片段。
 
-        ChromaDB 内部自动将 query 转为向量，与存储的文档向量做余弦相似度匹配。
+        ChromaDB 将 query 转为向量，按 collection 的距离度量检索；返回分数不是概率。
         """
         results = self._collection.query(
             query_texts=[query],
@@ -256,5 +256,7 @@ class KnowledgeBase:
                 ),
             },
         ]
+        for doc in default_docs:
+            doc["content"] = "以下是 ServiceFlow 虚构业务场景的演示规则，不是实际业务承诺。" + doc["content"]
         self.add_documents(default_docs)
         logger.info(f"已导入默认知识库: {len(default_docs)} 篇文档")

@@ -3,17 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="EchoMind 多智能体客服工作台" />
-    <title>EchoMind · 智能客服</title>
+    <meta name="description" content="ServiceFlow 多智能体客服工作台" />
+    <title>ServiceFlow · 智能客服</title>
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <div class="app-shell">
       <aside class="sidebar" id="sidebar">
         <div class="brand">
-          <div class="brand-mark" aria-hidden="true">E</div>
+          <div class="brand-mark" aria-hidden="true">S</div>
           <div>
-            <strong>EchoMind</strong>
+            <strong>ServiceFlow</strong>
             <span>多智能体客服</span>
           </div>
         </div>
@@ -36,7 +36,7 @@
             </button>
             <button class="prompt-card" type="button" data-prompt="请介绍一下你能帮我处理哪些问题。">
               <span class="prompt-icon general" aria-hidden="true">✦</span>
-              <span><strong>了解服务范围</strong><small>认识 EchoMind</small></span>
+              <span><strong>了解服务范围</strong><small>认识 ServiceFlow</small></span>
             </button>
           </div>
         </section>
@@ -47,8 +47,8 @@
             <span id="status-text">正在连接服务</span>
           </div>
           <nav class="resource-links" aria-label="开发资源">
-            <a href="/docs" target="_blank" rel="noreferrer">API 文档</a>
-            <a href="/monitor" target="_blank" rel="noreferrer">运行监控</a>
+            <a href="https://github.com/zhangxiawei123/ServiceFlow/blob/main/wiki/文档中心.md" target="_blank" rel="noreferrer">项目文档</a>
+            <a href="https://github.com/zhangxiawei123/ServiceFlow" target="_blank" rel="noreferrer">源码仓库</a>
           </nav>
         </div>
       </aside>
@@ -67,9 +67,9 @@
           <div class="welcome" id="welcome">
             <div class="welcome-orbit" aria-hidden="true">
               <span class="orbit-ring"></span>
-              <span class="orbit-core">E</span>
+              <span class="orbit-core">S</span>
             </div>
-            <p class="eyebrow">ECHOMIND ASSISTANT</p>
+            <p class="eyebrow">SERVICEFLOW ASSISTANT</p>
             <h1>今天想解决什么问题？</h1>
             <p class="welcome-copy">描述你遇到的情况，系统会自动识别意图、选择合适的 Agent，并调用知识库与诊断工具。</p>
             <div class="capabilities" aria-label="系统能力">
@@ -84,7 +84,7 @@
         <footer class="composer-wrap">
           <form class="composer" id="composer">
             <label class="sr-only" for="message-input">输入消息</label>
-            <textarea id="message-input" rows="1" maxlength="4000" placeholder="输入你的问题…" autocomplete="off"></textarea>
+            <textarea id="message-input" rows="1" maxlength="2000" placeholder="输入你的问题…" autocomplete="off"></textarea>
             <button class="send-button" id="send-button" type="submit" aria-label="发送消息">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h13M13 6l6 6-6 6" /></svg>
             </button>
