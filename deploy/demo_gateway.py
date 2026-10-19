@@ -4,12 +4,15 @@ import asyncio
 import base64
 import binascii
 import hmac
+import hashlib
 import json
 import re
+import secrets
 import time
 from collections import deque
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from starlette.applications import Starlette
 from starlette.requests import ClientDisconnect, Request
@@ -24,7 +27,10 @@ class DemoGateway:
     The deployment must use one worker. This is not multi-user authentication.
     """
 
-    def __init__(self, app, *, password, username="demo", hourly_limit=30):
+    COOKIE_NAME = "__Host-serviceflow_demo"
+    SESSION_SECONDS = 8 * 3600
+
+    def __init__(self, app, *, password, username="demo", hourly_limit=30, login_page=None):
         if len(password) < 12:
             raise ValueError("SERVICEFLOW_DEMO_PASSWORD must contain at least 12 characters")
         if hourly_limit < 1:
@@ -34,6 +40,77 @@ class DemoGateway:
         self._hourly_limit = hourly_limit
         self._chat_times = deque()
         self._chat_busy = False
+        self._login_page = login_page
+        self._session_key = secrets.token_bytes(32)
+        self._login_times = deque()
+
+    def _session_token(self):
+        payload = f"{int(time.time()) + self.SESSION_SECONDS}.{secrets.token_hex(16)}"
+        signature = hmac.new(self._session_key, payload.encode(), hashlib.sha256).hexdigest()
+        return f"{payload}.{signature}"
+
+    def _valid_session(self, token):
+        if not token or len(token) > 256:
+            return False
+        try:
+            expiry, nonce, signature = token.split(".")
+            if int(expiry) <= time.time():
+                return False
+            payload = f"{expiry}.{nonce}".encode()
+            expected = hmac.new(self._session_key, payload, hashlib.sha256).hexdigest().encode()
+            return hmac.compare_digest(signature.encode(), expected)
+        except (ValueError, TypeError):
+            return False
+
+    @staticmethod
+    def _same_origin(request):
+        origin = request.headers.get("origin")
+        if not origin:
+            return True  # Non-browser clients still need valid credentials.
+        try:
+            parsed = urlsplit(origin)
+            return parsed.scheme in {"http", "https"} and parsed.netloc == request.headers.get("host")
+        except ValueError:
+            return False
+
+    async def _login(self, scope, receive, send, request):
+        if not self._same_origin(request):
+            await self._error(scope, receive, send, 403, "请从本站登录")
+            return
+        now = time.monotonic()
+        while self._login_times and self._login_times[0] <= now - 60:
+            self._login_times.popleft()
+        if len(self._login_times) >= 10:
+            await self._error(scope, receive, send, 429, "登录尝试过于频繁，请稍后重试", {"Retry-After": "60"})
+            return
+        self._login_times.append(now)
+        if request.headers.get("content-type", "").split(";", 1)[0].lower() != "application/json":
+            await self._error(scope, receive, send, 415, "请使用 application/json")
+            return
+        body = bytearray()
+        try:
+            async for chunk in request.stream():
+                body.extend(chunk)
+                if len(body) > 4096:
+                    await self._error(scope, receive, send, 413, "请求体过大")
+                    return
+            payload = json.loads(body)
+        except ClientDisconnect:
+            return
+        except (ValueError, UnicodeDecodeError):
+            payload = None
+        username = payload.get("username", "demo") if isinstance(payload, dict) else None
+        password = payload.get("password") if isinstance(payload, dict) else None
+        if not isinstance(username, str) or not isinstance(password, str):
+            await self._error(scope, receive, send, 422, "请填写账号和演示访问口令")
+            return
+        if not hmac.compare_digest(f"{username}:{password}".encode(), self._credentials):
+            await self._error(scope, receive, send, 401, "账号或访问口令错误")
+            return
+        response = JSONResponse({"ok": True}, headers={"Cache-Control": "no-store"})
+        response.set_cookie(self.COOKIE_NAME, self._session_token(), max_age=self.SESSION_SECONDS,
+                            secure=True, httponly=True, samesite="strict", path="/")
+        await response(scope, receive, send)
 
     async def _error(self, scope, receive, send, status, detail, headers=None):
         response = JSONResponse(
@@ -57,15 +134,23 @@ class DemoGateway:
             return
 
         request = Request(scope, receive)
+        if path == "/login" and method == "POST":
+            await self._login(scope, receive, send, request)
+            return
         scheme, _, token = request.headers.get("authorization", "").partition(" ")
         try:
             supplied = base64.b64decode(token, validate=True) if scheme.lower() == "basic" else b""
         except (binascii.Error, ValueError):
             supplied = b""
-        if not hmac.compare_digest(supplied, self._credentials):
-            await self._error(scope, receive, send, 401, "请使用演示访问口令登录", {
-                "WWW-Authenticate": 'Basic realm="ServiceFlow demo", charset="UTF-8"',
-            })
+        cookie_authenticated = self._valid_session(request.cookies.get(self.COOKIE_NAME))
+        if not (hmac.compare_digest(supplied, self._credentials) or cookie_authenticated):
+            if path == "/" and method in {"GET", "HEAD"} and self._login_page is not None:
+                await FileResponse(self._login_page, headers={"Cache-Control": "no-store"})(scope, receive, send)
+                return
+            await self._error(scope, receive, send, 401, "请在首页使用演示访问口令登录")
+            return
+        if cookie_authenticated and method not in {"GET", "HEAD"} and not self._same_origin(request):
+            await self._error(scope, receive, send, 403, "请求来源不正确")
             return
 
         read_allowed = path in {"/", "/styles.css", "/app.js", "/health"}
@@ -154,4 +239,5 @@ def create_gateway(backend, *, password, frontend_dir, username="demo", hourly_l
         ],
         lifespan=lifespan,
     )
-    return DemoGateway(public_app, password=password, username=username, hourly_limit=hourly_limit)
+    return DemoGateway(public_app, password=password, username=username, hourly_limit=hourly_limit,
+                       login_page=frontend / "login.html")

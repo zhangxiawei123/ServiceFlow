@@ -33,15 +33,68 @@ def make_demo(*, endpoint=None, hourly_limit=30, lifespan=None):
     return create_gateway(backend, password=PASSWORD, frontend_dir=FRONTEND, hourly_limit=hourly_limit)
 
 
-def test_health_probe_is_public_but_frontend_and_api_require_password():
+def test_health_probe_and_login_page_are_public_but_api_requires_password():
     with TestClient(make_demo()) as client:
         assert client.get("/healthz").json() == {"status": "ok"}
-        for path in ["/", "/app.js", "/health"]:
+        landing = client.get("/")
+        assert landing.status_code == 200
+        assert 'id="login-form"' in landing.text
+        assert "www-authenticate" not in landing.headers
+        for path in ["/app.js", "/health"]:
             response = client.get(path)
             assert response.status_code == 401
-            assert response.headers["www-authenticate"].startswith("Basic ")
-        assert client.get("/", auth=("demo", "wrong-password")).status_code == 401
-        assert client.get("/", headers={"Authorization": "Basic !!!"}).status_code == 401
+            assert "www-authenticate" not in response.headers
+        assert client.get("/app.js", auth=("demo", "wrong-password")).status_code == 401
+        assert client.get("/app.js", headers={"Authorization": "Basic !!!"}).status_code == 401
+
+
+def test_browser_login_uses_secure_cookie_without_native_auth_dialog():
+    with TestClient(make_demo(), base_url="https://demo.test") as client:
+        assert client.post("/login", json={"password": "wrong"}).status_code == 401
+        response = client.post("/login", json={"username": "demo", "password": PASSWORD},
+                               headers={"Origin": "https://demo.test"})
+        assert response.status_code == 200
+        cookie = response.headers["set-cookie"].lower()
+        for attribute in ["secure", "httponly", "samesite=strict", "path=/", "max-age=28800"]:
+            assert attribute in cookie
+        assert "www-authenticate" not in response.headers
+        assert PASSWORD not in response.text
+        assert 'id="login-form"' not in client.get("/").text
+        assert client.get("/app.js").status_code == 200
+        assert client.post("/chat", json={"message": "hello"},
+                           headers={"Origin": "https://demo.test"}).status_code == 200
+        assert client.get("/docs").status_code == 404
+
+
+def test_login_and_cookie_authenticated_chat_reject_cross_site_requests():
+    with TestClient(make_demo(), base_url="https://demo.test") as client:
+        credentials = {"password": PASSWORD}
+        assert client.post("/login", json=credentials, headers={"Origin": "https://evil.test"}).status_code == 403
+        assert client.post("/login", json=credentials).status_code == 200
+        assert client.post("/chat", json={"message": "hello"}, headers={"Origin": "https://evil.test"}).status_code == 403
+        assert client.post("/chat", json={"message": "hello"}, headers={"Origin": "null"}).status_code == 403
+
+
+def test_expired_forged_and_previous_process_cookies_do_not_authenticate():
+    demo = make_demo()
+    with TestClient(demo, base_url="https://demo.test") as client:
+        client.post("/login", json={"password": PASSWORD})
+        token = client.cookies.get(demo.COOKIE_NAME)
+        for invalid in [token[:-1] + ("a" if token[-1] != "a" else "b"), "0.nonce.signature", "bad", "1.n.非ASCII"]:
+            assert not demo._valid_session(invalid)
+        assert not make_demo()._valid_session(token)
+        client.cookies.clear()
+        assert client.get("/health").status_code == 401
+
+
+def test_login_rate_and_body_limits_apply_before_backend():
+    with TestClient(make_demo()) as client:
+        assert client.post("/login", content="x").status_code == 415
+        assert client.post("/login", json={"password": "x" * 5000}).status_code == 413
+        assert client.post("/login", content="invalid", headers={"Content-Type": "application/json"}).status_code == 422
+        for _ in range(7):
+            assert client.post("/login", json={"password": "wrong"}).status_code == 401
+        assert client.post("/login", json={"password": PASSWORD}).status_code == 429
 
 
 def test_frontend_assets_and_chat_share_one_authenticated_origin():

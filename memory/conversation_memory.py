@@ -196,14 +196,9 @@ class MemoryManager:
             doc_id = self._profile_doc_id(user_id)
             doc_text = self._safe_text(json.dumps(profile_data, ensure_ascii=False))
 
-            try:
-                await asyncio.to_thread(self._profile.delete, ids=[doc_id])
-            except Exception:
-                pass
-
             # 直接传 documents，让 ChromaDB 内置模型生成 embedding（不依赖 Voyage API）
             await asyncio.to_thread(
-                self._profile.add,
+                self._profile.upsert,
                 ids=[doc_id],
                 documents=[doc_text],
                 metadatas=[{
@@ -325,7 +320,10 @@ class MemoryManager:
             results = await self._query_episodic(
                 query_text,
                 n_results=self.HISTORY_TOP_K,
-                where={"user_id": self._safe_text(user_id), "conv_id": self._safe_text(conv_id)},
+                where={"$and": [
+                    {"user_id": self._safe_text(user_id)},
+                    {"conv_id": self._safe_text(conv_id)},
+                ]},
             )
             docs = self._extract_docs(results)
             if len(docs) < self.HISTORY_TOP_K:
@@ -415,10 +413,13 @@ class MemoryManager:
         n_results: int,
         where: Dict[str, Any],
     ) -> Dict[str, Any]:
+        count = await asyncio.to_thread(self._episodic.count)
+        if count == 0:
+            return {"documents": [[]]}
         return await asyncio.to_thread(
             self._episodic.query,
             query_texts=[query_text],
-            n_results=n_results,
+            n_results=min(n_results, count),
             where=where,
         )
 

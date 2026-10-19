@@ -35,6 +35,10 @@ function setServiceState(mode, text) {
 async function checkHealth() {
   try {
     const response = await fetch("/health", { headers: { Accept: "application/json" } });
+    if (response.status === 401) {
+      window.location.replace("/");
+      return;
+    }
     if (!response.ok) throw new Error("service unavailable");
     const payload = await response.json();
     const models = Object.values(payload.agents || {}).map((agent) => agent.model).filter(Boolean);
