@@ -18,6 +18,6 @@ ServiceFlow 由 GitHub 用户 [zhangxiawei123](https://github.com/zhangxiawei123
 
 ## 第三方组件与模型
 
-Python、FastAPI、Pydantic、Uvicorn、Redis、ChromaDB、Anthropic SDK、Prometheus 等组件及容器镜像保留各自权利和许可。依赖清单见 `requirements.txt`；向量模型 all-MiniLM-L6-v2 不是本项目训练的模型。DeepSeek 属外部模型服务，调用遵循对应账户与服务条款。
+Python、FastAPI、Pydantic、Uvicorn、Redis、ChromaDB、Anthropic SDK、Prometheus 等组件及容器镜像保留各自权利和许可。依赖清单见 `requirements.txt`；DeepSeek 属外部模型服务，调用遵循对应账户与服务条款。
 
 演示知识仅用于功能测试，不构成真实价格、退款政策、隐私保证或合规认证。不得从项目命名、示例文档或模型回复推断存在真实客户或商业运营。
