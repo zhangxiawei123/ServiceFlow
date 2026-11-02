@@ -20,7 +20,7 @@ const state = {
 };
 
 function getUserId() {
-  const stored = localStorage.getItem("serviceflow-user-id") || localStorage.getItem("echomind-user-id");
+  const stored = localStorage.getItem("serviceflow-user-id");
   if (stored) {
     localStorage.setItem("serviceflow-user-id", stored);
     return stored;

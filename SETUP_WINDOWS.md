@@ -92,10 +92,10 @@ docker compose down
 
 ## 7. 升级命名的注意事项
 
-当前应用服务名为 `serviceflow`，日志命令和 Nginx 上游已同步更新。旧版 Skills 环境变量仍可读取，新配置使用 `SERVICEFLOW_SKILLS_DIR` 和 `SERVICEFLOW_SKILLS_MAX_PROMPT_CHARS`。
+当前应用服务名为 `serviceflow`，日志命令和 Nginx 上游已同步更新。Skills 只读取 `SERVICEFLOW_SKILLS_DIR` 和 `SERVICEFLOW_SKILLS_MAX_PROMPT_CHARS`；已有部署应在升级前确认这两项配置，其他项目名前缀不再兼容。
 
 如已有旧 Compose 项目，先确认其 project name、容器和卷，备份后停止旧服务，再启动新版。更换目录或 project name 会改变默认卷前缀；本次更新不执行数据迁移或删除旧卷。
 
-浏览器优先读取 `serviceflow-user-id`，没有时沿用旧用户标识。Chroma collection 名称及 Redis key 结构未更改。
+浏览器只读取 `serviceflow-user-id`，没有时创建新标识。仅保存旧名称用户标识的浏览器不再自动沿用该标识；本次更新不会删除浏览器存储、Chroma 数据或 Redis 历史。Chroma collection 名称及 Redis key 结构未更改。
 
 更多配置、接口及故障定位见[完整使用指南](wiki/完整使用指南.md)。

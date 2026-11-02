@@ -1,4 +1,5 @@
 """Identity, documentation and configuration checks; no external services or LLM calls."""
+import ast
 import json
 import re
 import xml.etree.ElementTree as ET
@@ -16,9 +17,8 @@ ROOT = Path(__file__).resolve().parent.parent
 
 @pytest.fixture
 def clean_skill_env(monkeypatch):
-    for prefix in ("SERVICEFLOW", "ECHOMIND"):
-        for suffix in ("SKILLS_DIR", "SKILLS_MAX_PROMPT_CHARS"):
-            monkeypatch.delenv(f"{prefix}_{suffix}", raising=False)
+    for suffix in ("SKILLS_DIR", "SKILLS_MAX_PROMPT_CHARS"):
+        monkeypatch.delenv(f"SERVICEFLOW_{suffix}", raising=False)
     return monkeypatch
 
 
@@ -26,18 +26,25 @@ def test_skill_settings_defaults(clean_skill_env):
     assert load_skill_settings("default") == {"root_dir": "default", "max_prompt_chars": 5000}
 
 
-def test_legacy_skill_environment_still_works(clean_skill_env):
-    clean_skill_env.setenv("ECHOMIND_SKILLS_DIR", "legacy")
-    clean_skill_env.setenv("ECHOMIND_SKILLS_MAX_PROMPT_CHARS", "2300")
-    assert load_skill_settings("default") == {"root_dir": "legacy", "max_prompt_chars": 2300}
+def test_serviceflow_skill_environment_is_supported(clean_skill_env):
+    clean_skill_env.setenv("SERVICEFLOW_SKILLS_DIR", "custom-skills")
+    clean_skill_env.setenv("SERVICEFLOW_SKILLS_MAX_PROMPT_CHARS", "2300")
+    assert load_skill_settings("default") == {"root_dir": "custom-skills", "max_prompt_chars": 2300}
 
 
-def test_serviceflow_environment_has_priority(clean_skill_env):
-    clean_skill_env.setenv("ECHOMIND_SKILLS_DIR", "legacy")
-    clean_skill_env.setenv("ECHOMIND_SKILLS_MAX_PROMPT_CHARS", "2300")
-    clean_skill_env.setenv("SERVICEFLOW_SKILLS_DIR", "current")
-    clean_skill_env.setenv("SERVICEFLOW_SKILLS_MAX_PROMPT_CHARS", "4100")
-    assert load_skill_settings("default") == {"root_dir": "current", "max_prompt_chars": 4100}
+def test_skill_settings_uses_only_serviceflow_environment():
+    source = (ROOT / "core/project_config.py").read_text(encoding="utf-8")
+    tree = ast.parse(source)
+    names = {
+        node.args[0].value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Attribute)
+        and node.func.attr == "getenv"
+        and node.args
+        and isinstance(node.args[0], ast.Constant)
+    }
+    assert names == {"SERVICEFLOW_SKILLS_DIR", "SERVICEFLOW_SKILLS_MAX_PROMPT_CHARS"}
 
 
 def test_all_document_links_resolve():
@@ -60,10 +67,9 @@ def test_frontend_and_api_identity():
     index = (ROOT / "frontend/index.html").read_text(encoding="utf-8")
     api = (ROOT / "api/main.py").read_text(encoding="utf-8")
     assert "<title>ServiceFlow" in index
-    assert "EchoMind" not in index
     assert 'title="ServiceFlow 智能客服"' in api
     app = (ROOT / "frontend/app.js").read_text(encoding="utf-8")
-    assert 'localStorage.getItem("serviceflow-user-id") || localStorage.getItem("echomind-user-id")' in app
+    assert 'const stored = localStorage.getItem("serviceflow-user-id");' in app
 
 
 def test_business_skills_load_and_match():
@@ -85,7 +91,6 @@ def test_local_deployment_references_use_serviceflow():
     assert "serviceflow:8000" in prometheus
     assert "CHROMA_HOST=chromadb" in compose
     assert "CHROMA_PORT=8000" in compose
-    assert "echomind" not in compose + nginx + prometheus
 
 
 def test_diagrams_are_valid_and_branded():
@@ -95,7 +100,6 @@ def test_diagrams_are_valid_and_branded():
         tree = ET.parse(path)
         text = " ".join(tree.getroot().itertext())
         assert "SERVICEFLOW" in text
-        assert "EchoMind" not in text
 
 
 def test_demo_knowledge_has_no_fabricated_product_claims():
