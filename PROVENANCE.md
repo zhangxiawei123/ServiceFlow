@@ -4,8 +4,6 @@
 
 ServiceFlow 由 GitHub 用户 [zhangxiawei123](https://github.com/zhangxiawei123) 维护，仓库为 [zhangxiawei123/ServiceFlow](https://github.com/zhangxiawei123/ServiceFlow)。
 
-项目初始代码来源为 [Biscuit-AI531/EchoMind](https://github.com/Biscuit-AI531/EchoMind)。现有仓库对产品命名、文档、模型配置、前端、部署保护及记忆检索进行了工程整理与调整。名称统一不改变已有代码的来源或原作者权利，也不表示所有模块均由当前维护者从零原创。
-
 ## 本仓库可核验的工程调整
 
 - DeepSeek Anthropic Messages 兼容配置，以及配置回归测试。
